@@ -15,6 +15,7 @@
 package main
 
 import (
+	"strconv"
 	"syscall"
 	"testing"
 )
@@ -35,7 +36,7 @@ func TestParseSignal(t *testing.T) {
 		},
 		{
 			name:  "accepts numeric signal",
-			input: "28",
+			input: strconv.Itoa(int(syscall.SIGWINCH)),
 			want:  syscall.SIGWINCH,
 		},
 		{

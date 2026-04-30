@@ -25,6 +25,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/sys/unix"
 )
 
 var killCommand = &cli.Command{
@@ -71,40 +72,6 @@ signal to the init process of the "ubuntu01" container:
 	},
 }
 
-var signalMap = map[string]syscall.Signal{
-	"HUP":    syscall.SIGHUP,
-	"INT":    syscall.SIGINT,
-	"QUIT":   syscall.SIGQUIT,
-	"ILL":    syscall.SIGILL,
-	"TRAP":   syscall.SIGTRAP,
-	"ABRT":   syscall.SIGABRT,
-	"BUS":    syscall.SIGBUS,
-	"FPE":    syscall.SIGFPE,
-	"KILL":   syscall.SIGKILL,
-	"USR1":   syscall.SIGUSR1,
-	"SEGV":   syscall.SIGSEGV,
-	"USR2":   syscall.SIGUSR2,
-	"PIPE":   syscall.SIGPIPE,
-	"ALRM":   syscall.SIGALRM,
-	"TERM":   syscall.SIGTERM,
-	"STKFLT": syscall.SIGSTKFLT,
-	"CHLD":   syscall.SIGCHLD,
-	"CONT":   syscall.SIGCONT,
-	"STOP":   syscall.SIGSTOP,
-	"TSTP":   syscall.SIGTSTP,
-	"TTIN":   syscall.SIGTTIN,
-	"TTOU":   syscall.SIGTTOU,
-	"URG":    syscall.SIGURG,
-	"XCPU":   syscall.SIGXCPU,
-	"XFSZ":   syscall.SIGXFSZ,
-	"VTALRM": syscall.SIGVTALRM,
-	"PROF":   syscall.SIGPROF,
-	"WINCH":  syscall.SIGWINCH,
-	"IO":     syscall.SIGIO,
-	"PWR":    syscall.SIGPWR,
-	"SYS":    syscall.SIGSYS,
-}
-
 func parseSignal(sigStr string) (syscall.Signal, error) {
 	if sigStr == "" {
 		return syscall.SIGTERM, nil
@@ -118,9 +85,13 @@ func parseSignal(sigStr string) (syscall.Signal, error) {
 	}
 
 	normalized := strings.ToUpper(sigStr)
-	normalized = strings.TrimPrefix(normalized, "SIG")
-	if sig, ok := signalMap[normalized]; ok {
-		return sig, nil
+	if sig, ok := unix.SignalNum(normalized); ok {
+		return syscall.Signal(sig), nil
+	}
+	if !strings.HasPrefix(normalized, "SIG") {
+		if sig, ok := unix.SignalNum("SIG" + normalized); ok {
+			return syscall.Signal(sig), nil
+		}
 	}
 
 	return 0, fmt.Errorf("unknown signal %q", sigStr)

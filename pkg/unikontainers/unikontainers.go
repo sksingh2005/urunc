@@ -568,6 +568,9 @@ func (u *Unikontainer) Kill() error {
 func (u *Unikontainer) Signal(sig syscall.Signal) error {
 	// For non-kill signals, forward directly to the monitor PID.
 	if sig != syscall.SIGKILL {
+		if u.State.Pid <= 0 {
+			return fmt.Errorf("invalid monitor pid %d for signal %v", u.State.Pid, sig)
+		}
 		return syscall.Kill(u.State.Pid, sig)
 	}
 
