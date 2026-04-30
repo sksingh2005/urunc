@@ -16,11 +16,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+	"golang.org/x/sys/unix"
 )
 
 var killCommand = &cli.Command{
@@ -59,6 +64,35 @@ signal to the init process of the "ubuntu01" container:
 		if err != nil {
 			return err
 		}
-		return unikontainer.Kill()
+		sig, err := parseSignal(cmd.Args().Get(1))
+		if err != nil {
+			return err
+		}
+		return unikontainer.Signal(sig)
 	},
+}
+
+func parseSignal(sigStr string) (syscall.Signal, error) {
+	if sigStr == "" {
+		return syscall.SIGTERM, nil
+	}
+
+	if sigNum, err := strconv.Atoi(sigStr); err == nil {
+		if sigNum <= 0 {
+			return 0, fmt.Errorf("invalid signal %q", sigStr)
+		}
+		return syscall.Signal(sigNum), nil
+	}
+
+	normalized := strings.ToUpper(sigStr)
+	if sig, ok := unix.SignalNum(normalized); ok {
+		return syscall.Signal(sig), nil
+	}
+	if !strings.HasPrefix(normalized, "SIG") {
+		if sig, ok := unix.SignalNum("SIG" + normalized); ok {
+			return syscall.Signal(sig), nil
+		}
+	}
+
+	return 0, fmt.Errorf("unknown signal %q", sigStr)
 }
