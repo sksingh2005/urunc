@@ -16,8 +16,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -59,6 +63,65 @@ signal to the init process of the "ubuntu01" container:
 		if err != nil {
 			return err
 		}
-		return unikontainer.Kill()
+		sig, err := parseSignal(cmd.Args().Get(1))
+		if err != nil {
+			return err
+		}
+		return unikontainer.Signal(sig)
 	},
+}
+
+var signalMap = map[string]syscall.Signal{
+	"HUP":    syscall.SIGHUP,
+	"INT":    syscall.SIGINT,
+	"QUIT":   syscall.SIGQUIT,
+	"ILL":    syscall.SIGILL,
+	"TRAP":   syscall.SIGTRAP,
+	"ABRT":   syscall.SIGABRT,
+	"BUS":    syscall.SIGBUS,
+	"FPE":    syscall.SIGFPE,
+	"KILL":   syscall.SIGKILL,
+	"USR1":   syscall.SIGUSR1,
+	"SEGV":   syscall.SIGSEGV,
+	"USR2":   syscall.SIGUSR2,
+	"PIPE":   syscall.SIGPIPE,
+	"ALRM":   syscall.SIGALRM,
+	"TERM":   syscall.SIGTERM,
+	"STKFLT": syscall.SIGSTKFLT,
+	"CHLD":   syscall.SIGCHLD,
+	"CONT":   syscall.SIGCONT,
+	"STOP":   syscall.SIGSTOP,
+	"TSTP":   syscall.SIGTSTP,
+	"TTIN":   syscall.SIGTTIN,
+	"TTOU":   syscall.SIGTTOU,
+	"URG":    syscall.SIGURG,
+	"XCPU":   syscall.SIGXCPU,
+	"XFSZ":   syscall.SIGXFSZ,
+	"VTALRM": syscall.SIGVTALRM,
+	"PROF":   syscall.SIGPROF,
+	"WINCH":  syscall.SIGWINCH,
+	"IO":     syscall.SIGIO,
+	"PWR":    syscall.SIGPWR,
+	"SYS":    syscall.SIGSYS,
+}
+
+func parseSignal(sigStr string) (syscall.Signal, error) {
+	if sigStr == "" {
+		return syscall.SIGTERM, nil
+	}
+
+	if sigNum, err := strconv.Atoi(sigStr); err == nil {
+		if sigNum <= 0 {
+			return 0, fmt.Errorf("invalid signal %q", sigStr)
+		}
+		return syscall.Signal(sigNum), nil
+	}
+
+	normalized := strings.ToUpper(sigStr)
+	normalized = strings.TrimPrefix(normalized, "SIG")
+	if sig, ok := signalMap[normalized]; ok {
+		return sig, nil
+	}
+
+	return 0, fmt.Errorf("unknown signal %q", sigStr)
 }

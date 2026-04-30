@@ -560,6 +560,17 @@ func setupUser(user specs.User) error {
 // Kill stops the VMM process, first by asking the VMM struct to stop
 // and consequently by killing the process described in u.State.Pid
 func (u *Unikontainer) Kill() error {
+	return u.Signal(syscall.SIGKILL)
+}
+
+// Signal sends the given signal to the monitor process.
+// For SIGKILL we preserve the previous hard-stop behavior and cleanup path.
+func (u *Unikontainer) Signal(sig syscall.Signal) error {
+	// For non-kill signals, forward directly to the monitor PID.
+	if sig != syscall.SIGKILL {
+		return syscall.Kill(u.State.Pid, sig)
+	}
+
 	// Try to join the Network namespace of the monitor before killing it.
 	// If we kill it there might be no process inside the namespace and hence
 	// the namespace gets destroyed.
